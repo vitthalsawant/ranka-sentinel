@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RankaLogo } from '@/components/RankaLogo';
+import { DataMorphosisLogo } from '@/components/DataMorphosisLogo';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/types/auth';
 import { Eye, EyeOff, User, Mail, Phone, Shield, Loader2 } from 'lucide-react';
@@ -107,12 +107,12 @@ const Register: React.FC = () => {
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md animate-fade-in">
           <Link to="/" className="inline-block mb-8">
-            <RankaLogo variant="gold" />
+            <DataMorphosisLogo variant="color" />
           </Link>
           
           <div className="mb-8">
             <h1 className="font-display text-3xl font-bold mb-2">Create Account</h1>
-            <p className="text-muted-foreground">Join the Ranka Jewellers family</p>
+            <p className="text-muted-foreground">Join the Datamorphosis platform</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -275,7 +275,7 @@ const Register: React.FC = () => {
           </h2>
           <p className="text-muted-foreground/80">
             Your data is protected with enterprise-grade security. 
-            Join thousands of trusted customers in the Ranka ecosystem.
+            Join leading enterprises using the Datamorphosis platform.
           </p>
         </div>
       </div>

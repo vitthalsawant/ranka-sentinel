@@ -16,7 +16,7 @@ const MOCK_USERS: User[] = [
   {
     id: '1',
     fullName: 'Admin User',
-    email: 'admin@ranka.com',
+    email: 'admin@datamorphosis.in',
     phone: '+91 9876543210',
     role: 'admin',
     createdAt: new Date('2024-01-01'),
@@ -24,7 +24,7 @@ const MOCK_USERS: User[] = [
   {
     id: '2',
     fullName: 'Rajesh Kumar',
-    email: 'employee@ranka.com',
+    email: 'employee@datamorphosis.in',
     phone: '+91 9876543211',
     role: 'employee',
     createdAt: new Date('2024-02-15'),
@@ -32,7 +32,7 @@ const MOCK_USERS: User[] = [
   {
     id: '3',
     fullName: 'Priya Sharma',
-    email: 'customer@ranka.com',
+    email: 'customer@datamorphosis.in',
     phone: '+91 9876543212',
     role: 'customer',
     createdAt: new Date('2024-03-20'),
@@ -48,7 +48,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   useEffect(() => {
     // Check for stored session
-    const storedUser = localStorage.getItem('ranka_user');
+    const storedUser = localStorage.getItem('datamorphosis_user');
     if (storedUser) {
       const user = JSON.parse(storedUser);
       setAuthState({
@@ -73,9 +73,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const updatedUser = { ...user, lastLogin: new Date() };
       
       if (credentials.rememberMe) {
-        localStorage.setItem('ranka_user', JSON.stringify(updatedUser));
+        localStorage.setItem('datamorphosis_user', JSON.stringify(updatedUser));
       } else {
-        sessionStorage.setItem('ranka_user', JSON.stringify(updatedUser));
+        sessionStorage.setItem('datamorphosis_user', JSON.stringify(updatedUser));
       }
       
       setAuthState({
@@ -117,7 +117,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
     
     MOCK_USERS.push(newUser);
-    localStorage.setItem('ranka_user', JSON.stringify(newUser));
+    localStorage.setItem('datamorphosis_user', JSON.stringify(newUser));
     
     setAuthState({
       user: newUser,
@@ -125,13 +125,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       isLoading: false,
     });
     
-    toast.success('Registration successful! Welcome to Ranka Jewellers.');
+    toast.success('Registration successful! Welcome to Datamorphosis.');
     return true;
   };
 
   const logout = () => {
-    localStorage.removeItem('ranka_user');
-    sessionStorage.removeItem('ranka_user');
+    localStorage.removeItem('datamorphosis_user');
+    sessionStorage.removeItem('datamorphosis_user');
     setAuthState({
       user: null,
       isAuthenticated: false,
@@ -144,7 +144,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (authState.user) {
       const updatedUser = { ...authState.user, ...updates };
       setAuthState(prev => ({ ...prev, user: updatedUser }));
-      localStorage.setItem('ranka_user', JSON.stringify(updatedUser));
+      localStorage.setItem('datamorphosis_user', JSON.stringify(updatedUser));
     }
   };
 

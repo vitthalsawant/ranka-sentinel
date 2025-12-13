@@ -4,9 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { RankaLogo } from '@/components/RankaLogo';
+import { DataMorphosisLogo } from '@/components/DataMorphosisLogo';
 import { useAuth } from '@/contexts/AuthContext';
-import { Eye, EyeOff, Mail, Lock, Loader2, Diamond } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Loader2, Brain } from 'lucide-react';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
@@ -49,7 +49,7 @@ const Login: React.FC = () => {
     
     if (success) {
       // Redirect based on role (handled by the login function's toast and context update)
-      const storedUser = localStorage.getItem('ranka_user') || sessionStorage.getItem('ranka_user');
+      const storedUser = localStorage.getItem('datamorphosis_user') || sessionStorage.getItem('datamorphosis_user');
       if (storedUser) {
         const user = JSON.parse(storedUser);
         const redirectPath = {
@@ -75,23 +75,23 @@ const Login: React.FC = () => {
       <div className="hidden lg:flex flex-1 bg-gradient-to-br from-charcoal to-obsidian items-center justify-center p-12">
         <div className="max-w-md text-center">
           <div className="w-24 h-24 mx-auto mb-8 rounded-2xl gold-gradient flex items-center justify-center shadow-2xl shadow-primary/30 animate-float">
-            <Diamond className="w-12 h-12 text-background" />
+            <Brain className="w-12 h-12 text-background" />
           </div>
           <h2 className="font-display text-3xl font-bold text-primary-foreground mb-4">
             Welcome Back
           </h2>
           <p className="text-muted-foreground/80">
             Access your personalized dashboard and continue your journey 
-            with Ranka Jewellers.
+            with Datamorphosis.
           </p>
           
           {/* Demo Credentials */}
           <div className="mt-12 p-6 rounded-xl bg-background/5 border border-border/20 text-left">
             <h3 className="text-sm font-medium text-primary mb-3">Demo Credentials</h3>
             <div className="space-y-2 text-sm text-muted-foreground/70">
-              <p><span className="text-primary-foreground">Admin:</span> admin@ranka.com</p>
-              <p><span className="text-primary-foreground">Employee:</span> employee@ranka.com</p>
-              <p><span className="text-primary-foreground">Customer:</span> customer@ranka.com</p>
+              <p><span className="text-primary-foreground">Admin:</span> admin@datamorphosis.in</p>
+              <p><span className="text-primary-foreground">Employee:</span> employee@datamorphosis.in</p>
+              <p><span className="text-primary-foreground">Customer:</span> customer@datamorphosis.in</p>
               <p className="mt-2 text-xs">Password: password123</p>
             </div>
           </div>
@@ -102,7 +102,7 @@ const Login: React.FC = () => {
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md animate-fade-in">
           <Link to="/" className="inline-block mb-8">
-            <RankaLogo variant="gold" />
+            <DataMorphosisLogo variant="color" />
           </Link>
           
           <div className="mb-8">
@@ -193,7 +193,7 @@ const Login: React.FC = () => {
           <div className="lg:hidden mt-8 p-4 rounded-xl bg-secondary/50 border border-border">
             <h3 className="text-sm font-medium text-primary mb-2">Demo Credentials</h3>
             <p className="text-xs text-muted-foreground">
-              Admin: admin@ranka.com | Employee: employee@ranka.com | Customer: customer@ranka.com
+              Admin: admin@datamorphosis.in | Employee: employee@datamorphosis.in | Customer: customer@datamorphosis.in
             </p>
             <p className="text-xs text-muted-foreground mt-1">Password: password123</p>
           </div>
