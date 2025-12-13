@@ -12,6 +12,8 @@ import CustomerDashboard from "./pages/CustomerDashboard";
 import CompanyDashboard from "./pages/CompanyDashboard";
 import CameraManagement from "./pages/CameraManagement";
 import DetectionSettings from "./pages/DetectionSettings";
+import CustomerAnalytics from "./pages/CustomerAnalytics";
+import CustomerHeatmaps from "./pages/CustomerHeatmaps";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -134,6 +136,22 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={['customer']}>
             <CustomerDashboard />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/customer/analytics" 
+        element={
+          <ProtectedRoute allowedRoles={['customer']}>
+            <CustomerAnalytics />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/customer/heatmaps" 
+        element={
+          <ProtectedRoute allowedRoles={['customer']}>
+            <CustomerHeatmaps />
           </ProtectedRoute>
         } 
       />
