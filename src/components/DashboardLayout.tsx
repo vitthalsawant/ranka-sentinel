@@ -23,7 +23,8 @@ import {
   ClipboardList,
   BarChart3,
   Shield,
-  FileText
+  FileText,
+  Activity
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -81,6 +82,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       case 'customer':
         return [
           ...baseItems,
+          { icon: BarChart3, label: 'Analytics', path: '/customer/analytics' },
+          { icon: Activity, label: 'Heatmaps', path: '/customer/heatmaps' },
           { icon: ShoppingBag, label: 'My Orders', path: '/customer/orders' },
           { icon: Heart, label: 'Wishlist', path: '/customer/wishlist' },
           { icon: Gift, label: 'Rewards', path: '/customer/rewards' },
