@@ -1,7 +1,7 @@
 import React, { ReactNode } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { RankaLogo } from '@/components/RankaLogo';
+import { DataMorphosisLogo } from '@/components/DataMorphosisLogo';
 import { useAuth } from '@/contexts/AuthContext';
 import { 
   LayoutDashboard, 
@@ -107,10 +107,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           {/* Logo */}
           <div className="h-16 flex items-center justify-center border-b border-sidebar-border px-4">
             {sidebarOpen ? (
-              <RankaLogo variant={user?.role === 'admin' ? 'gold' : 'gold'} />
+              <DataMorphosisLogo variant="color" />
             ) : (
               <div className="w-10 h-10 rounded-lg gold-gradient flex items-center justify-center">
-                <span className="font-display text-lg font-bold text-background">R</span>
+                <span className="font-display text-lg font-bold text-background">D</span>
               </div>
             )}
           </div>
@@ -234,7 +234,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             <div className="fixed inset-0 bg-background/80 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
             <div className="fixed left-0 top-0 h-full w-64 bg-sidebar border-r border-sidebar-border p-4 animate-slide-up">
               <div className="flex items-center justify-between mb-6">
-                <RankaLogo variant="gold" />
+                <DataMorphosisLogo variant="color" />
                 <button onClick={() => setMobileMenuOpen(false)}>
                   <X className="w-6 h-6" />
                 </button>
