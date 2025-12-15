@@ -2,6 +2,7 @@ import React from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import VideoStream from '@/components/VideoStream';
 import { Camera, AlertTriangle, Shield, Play, Bell, Activity, Clock, Settings, Users, UserCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
@@ -20,7 +21,7 @@ const MOCK_CAMERAS = [
 
 const CustomerDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { analytics, detections, isConnected, error, refreshAll } = usePythonAPI(5000);
+  const { analytics, detections, isConnected, error, refreshAll } = usePythonAPI(3000); // 3 second refresh for more responsive updates
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -216,22 +217,24 @@ const CustomerDashboard: React.FC = () => {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {MOCK_CAMERAS.map((camera) => (
                 <div key={camera.id} className="relative rounded-lg overflow-hidden border border-border hover-lift cursor-pointer">
-                  <div className="aspect-video bg-charcoal flex items-center justify-center relative">
+                  <div className="aspect-video bg-charcoal relative overflow-hidden">
                     {camera.status === 'online' ? (
                       <>
-                        <div className="text-center">
-                          <Play className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
-                          <p className="text-xs text-muted-foreground">Live Feed</p>
-                        </div>
-                        <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded bg-red-500/80 text-white text-xs">
+                        <VideoStream 
+                          cameraId={camera.id}
+                          className="absolute inset-0"
+                        />
+                        <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded bg-red-500/80 text-white text-xs z-10">
                           <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
                           REC
                         </div>
                       </>
                     ) : (
-                      <p className="text-xs text-muted-foreground">
-                        {camera.status === 'offline' ? 'Camera Offline' : 'Under Maintenance'}
-                      </p>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <p className="text-xs text-muted-foreground">
+                          {camera.status === 'offline' ? 'Camera Offline' : 'Under Maintenance'}
+                        </p>
+                      </div>
                     )}
                   </div>
                   <div className="p-3 bg-background">

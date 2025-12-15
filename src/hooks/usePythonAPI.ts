@@ -62,6 +62,8 @@ export const usePythonAPI = (pollInterval = 5000) => {
   const [status, setStatus] = useState<APIStatus | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const fetchData = useCallback(async (endpoint: string) => {
     try {
@@ -89,6 +91,7 @@ export const usePythonAPI = (pollInterval = 5000) => {
     try {
       const data = await fetchData('/api/analytics');
       setAnalytics(data);
+      setLastUpdate(new Date());
     } catch (err) {
       console.error('Failed to fetch analytics:', err);
     }
@@ -113,18 +116,32 @@ export const usePythonAPI = (pollInterval = 5000) => {
   }, [fetchData]);
 
   const refreshAll = useCallback(async () => {
-    await Promise.all([
-      fetchStatus(),
-      fetchAnalytics(),
-      fetchDetections(),
-      fetchHeatmap()
-    ]);
+    setIsLoading(true);
+    try {
+      await Promise.all([
+        fetchStatus(),
+        fetchAnalytics(),
+        fetchDetections(),
+        fetchHeatmap()
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   }, [fetchStatus, fetchAnalytics, fetchDetections, fetchHeatmap]);
 
   useEffect(() => {
+    // Initial fetch
     refreshAll();
-    const interval = setInterval(refreshAll, pollInterval);
-    return () => clearInterval(interval);
+    
+    // Set up polling interval
+    const intervalId = setInterval(() => {
+      refreshAll();
+    }, pollInterval);
+    
+    // Cleanup interval on unmount
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [refreshAll, pollInterval]);
 
   return {
@@ -134,6 +151,8 @@ export const usePythonAPI = (pollInterval = 5000) => {
     status,
     isConnected,
     error,
-    refreshAll
+    refreshAll,
+    lastUpdate,
+    isLoading
   };
 };

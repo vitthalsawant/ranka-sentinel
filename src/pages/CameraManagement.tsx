@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import VideoStream from '@/components/VideoStream';
 import { 
   Camera, 
   Plus, 
@@ -271,13 +272,14 @@ const CameraManagement: React.FC = () => {
                 style={{ animationDelay: `${index * 0.05}s` }}
               >
                 {/* Camera Feed */}
-                <div className="aspect-video bg-muted relative">
+                <div className="aspect-video bg-muted relative overflow-hidden">
                   {camera.status === 'online' ? (
                     <>
-                      <div className="absolute inset-0 bg-gradient-to-br from-muted/30 to-muted/80 flex items-center justify-center">
-                        <Eye className="w-12 h-12 text-muted-foreground/30" />
-                      </div>
-                      <div className="absolute top-3 left-3 flex items-center gap-2">
+                      <VideoStream 
+                        cameraId={camera.id}
+                        className="absolute inset-0"
+                      />
+                      <div className="absolute top-3 left-3 flex items-center gap-2 z-10">
                         <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                         <span className="text-xs font-medium bg-background/80 backdrop-blur px-2 py-0.5 rounded">Live</span>
                       </div>

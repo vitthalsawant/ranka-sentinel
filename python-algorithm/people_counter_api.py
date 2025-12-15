@@ -240,6 +240,15 @@ def run_detection():
         cv2.fillPoly(overlay, area_roi, (255, 0, 0))
         frame = cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0)
         
+        # Send frame to API for streaming (via HTTP - works across processes)
+        try:
+            _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+            requests.post(f"{API_BASE_URL}/api/internal/update-frame", 
+                        files={'frame': buffer.tobytes()},
+                        timeout=0.1)
+        except:
+            pass
+        
         # Send to API every 10 frames
         if frame_count % 10 == 0:
             try:
