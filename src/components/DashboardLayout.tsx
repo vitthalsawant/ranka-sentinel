@@ -1,29 +1,15 @@
 import React, { ReactNode } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { DataMorphosisLogo } from '@/components/DataMorphosisLogo';
-import { useAuth } from '@/contexts/AuthContext';
 import { 
   LayoutDashboard, 
-  Users, 
-  Package, 
-  Calendar, 
   Settings, 
   Bell, 
-  LogOut,
-  Camera,
-  Brain,
   ChevronDown,
   Menu,
   X,
-  ShoppingBag,
-  Heart,
-  Gift,
-  MessageSquare,
-  ClipboardList,
   BarChart3,
-  Shield,
-  FileText,
   Activity
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -40,64 +26,18 @@ interface DashboardLayoutProps {
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = React.useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
-
-  // All dashboards now use the same customer theme (cream/gold)
-  const getThemeClass = () => '';
-
-
-  const getNavItems = () => {
-    const baseItems = [
-      { icon: LayoutDashboard, label: 'Dashboard', path: `/${user?.role}` },
-    ];
-
-    switch (user?.role) {
-      case 'admin':
-        return [
-          ...baseItems,
-          { icon: Users, label: 'User Management', path: '/admin/users' },
-          { icon: Package, label: 'Inventory', path: '/admin/inventory' },
-          { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
-          { icon: FileText, label: 'Reports', path: '/admin/reports' },
-          { icon: Settings, label: 'Settings', path: '/admin/settings' },
-        ];
-      case 'employee':
-        return [
-          ...baseItems,
-          { icon: ClipboardList, label: 'Tasks', path: '/employee/tasks' },
-          { icon: Users, label: 'Customers', path: '/employee/customers' },
-          { icon: Package, label: 'Inventory', path: '/employee/inventory' },
-          { icon: Calendar, label: 'Schedule', path: '/employee/schedule' },
-          { icon: MessageSquare, label: 'Messages', path: '/employee/messages' },
-        ];
-      case 'customer':
-        return [
-          ...baseItems,
-          { icon: BarChart3, label: 'Analytics', path: '/customer/analytics' },
-          { icon: Activity, label: 'Heatmaps', path: '/customer/heatmaps' },
-          { icon: ShoppingBag, label: 'My Orders', path: '/customer/orders' },
-          { icon: Heart, label: 'Wishlist', path: '/customer/wishlist' },
-          { icon: Gift, label: 'Rewards', path: '/customer/rewards' },
-          { icon: Calendar, label: 'Appointments', path: '/customer/appointments' },
-        ];
-      default:
-        return baseItems;
-    }
-  };
-
-  const navItems = getNavItems();
+  const navItems = [
+    { icon: LayoutDashboard, label: 'Dashboard', path: '/customer' },
+    { icon: BarChart3, label: 'Analytics', path: '/customer/analytics' },
+    { icon: Activity, label: 'Heatmaps', path: '/customer/heatmaps' },
+  ];
 
   return (
-    <div className={cn('min-h-screen flex', getThemeClass())}>
+    <div className="min-h-screen flex">
       {/* Sidebar */}
       <aside
         className={cn(
@@ -168,27 +108,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
           {/* Left Section */}
           <div className="hidden lg:flex items-center gap-4">
             <h1 className="font-display text-xl font-bold capitalize">
-              {user?.role} Dashboard
+              Customer Dashboard
             </h1>
           </div>
-
-          {/* Admin-Only Header Buttons */}
-          {user?.role === 'admin' && (
-            <div className="hidden md:flex items-center gap-2">
-              <Link to="/admin/cameras">
-                <Button variant="gold" size="sm" className="gap-2">
-                  <Camera className="w-4 h-4" />
-                  <span className="hidden lg:inline">Camera Management</span>
-                </Button>
-              </Link>
-              <Link to="/admin/detection">
-                <Button variant="gold" size="sm" className="gap-2">
-                  <Brain className="w-4 h-4" />
-                  <span className="hidden lg:inline">Detection Settings</span>
-                </Button>
-              </Link>
-            </div>
-          )}
 
           {/* Right Section */}
           <div className="flex items-center gap-3">
@@ -204,27 +126,22 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 <Button variant="ghost" className="gap-2">
                   <div className="w-8 h-8 rounded-full gold-gradient flex items-center justify-center">
                     <span className="font-display text-sm font-bold text-background">
-                      {user?.fullName.charAt(0)}
+                      C
                     </span>
                   </div>
-                  <span className="hidden md:block font-medium">{user?.fullName}</span>
+                  <span className="hidden md:block font-medium">Customer</span>
                   <ChevronDown className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <div className="px-2 py-1.5">
-                  <p className="font-medium">{user?.fullName}</p>
-                  <p className="text-xs text-muted-foreground">{user?.email}</p>
+                  <p className="font-medium">Customer</p>
+                  <p className="text-xs text-muted-foreground">customer@example.com</p>
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
                   <Settings className="w-4 h-4 mr-2" />
                   Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-destructive">
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Logout
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -263,22 +180,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                   ))}
                 </ul>
               </nav>
-              {user?.role === 'admin' && (
-                <div className="mt-6 space-y-2">
-                  <Link to="/admin/cameras" onClick={() => setMobileMenuOpen(false)}>
-                    <Button variant="gold" className="w-full justify-start gap-2">
-                      <Camera className="w-4 h-4" />
-                      Camera Management
-                    </Button>
-                  </Link>
-                  <Link to="/admin/detection" onClick={() => setMobileMenuOpen(false)}>
-                    <Button variant="gold" className="w-full justify-start gap-2">
-                      <Brain className="w-4 h-4" />
-                      Detection Settings
-                    </Button>
-                  </Link>
-                </div>
-              )}
             </div>
           </div>
         )}
