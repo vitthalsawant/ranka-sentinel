@@ -1,27 +1,63 @@
-import React from 'react';
+import React, { useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import VideoStream from '@/components/VideoStream';
+import VideoStreamWithROI from '@/components/VideoStreamWithROI';
 import { Camera, AlertTriangle, Shield, Play, Bell, Activity, Clock, Settings, Users, UserCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { usePythonAPI } from '@/hooks/usePythonAPI';
 import APIConnectionStatus from '@/components/APIConnectionStatus';
+import { toast } from 'sonner';
 
 // Mock data fallback
 const MOCK_CAMERAS = [
-  { id: '1', name: 'Main Entrance', location: 'Ground Floor', status: 'online', detection_modes: ['face_recognition', 'person_counting'] },
-  { id: '2', name: 'Showroom A', location: 'Ground Floor', status: 'online', detection_modes: ['theft_alert', 'suspicious_behavior'] },
-  { id: '3', name: 'Vault Area', location: 'Basement', status: 'online', detection_modes: ['face_recognition', 'theft_alert'] },
-  { id: '4', name: 'Back Office', location: 'First Floor', status: 'offline', detection_modes: ['person_counting'] },
-  { id: '5', name: 'Parking Lot', location: 'Basement', status: 'online', detection_modes: ['vip_recognition', 'crowd_density'] },
-  { id: '6', name: 'Emergency Exit', location: 'Ground Floor', status: 'maintenance', detection_modes: ['suspicious_behavior'] },
+  { id: '1', name: 'Main Camera', location: 'Main Area', status: 'online', detection_modes: ['person_counting'] },
 ];
 
 const CustomerDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { analytics, detections, isConnected, error, refreshAll } = usePythonAPI(3000); // 3 second refresh for more responsive updates
+  const [roiConfig, setRoiConfig] = useState<{
+    x_start_percent: number;
+    x_end_percent: number;
+    y_start_percent: number;
+    y_end_percent: number;
+  } | null>(null);
+
+  // Load current ROI from API
+  React.useEffect(() => {
+    if (isConnected && analytics?.person_counting?.roi_config) {
+      setRoiConfig(analytics.person_counting.roi_config);
+    }
+  }, [isConnected, analytics]);
+
+  const handleROIChange = async (roi: {
+    x_start_percent: number;
+    x_end_percent: number;
+    y_start_percent: number;
+    y_end_percent: number;
+  }) => {
+    setRoiConfig(roi);
+    
+    // Save ROI to API
+    try {
+      const personCountingMode = { enabled: true, sensitivity: 80 };
+      await fetch('http://localhost:5000/api/person-counting/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enabled: personCountingMode.enabled,
+          sensitivity: personCountingMode.sensitivity,
+          roi_config: roi
+        })
+      });
+      toast.success('ROI region saved successfully! Counting will start now.');
+      refreshAll(); // Refresh to get updated data
+    } catch (error) {
+      toast.error('Failed to save ROI region. Please try again.');
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -214,15 +250,17 @@ const CustomerDashboard: React.FC = () => {
             </Button>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               {MOCK_CAMERAS.map((camera) => (
                 <div key={camera.id} className="relative rounded-lg overflow-hidden border border-border hover-lift cursor-pointer">
                   <div className="aspect-video bg-charcoal relative overflow-hidden">
                     {camera.status === 'online' ? (
                       <>
-                        <VideoStream 
+                        <VideoStreamWithROI 
                           cameraId={camera.id}
                           className="absolute inset-0"
+                          onROIChange={handleROIChange}
+                          currentROI={roiConfig}
                         />
                         <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 rounded bg-red-500/80 text-white text-xs z-10">
                           <div className="w-2 h-2 rounded-full bg-white animate-pulse" />

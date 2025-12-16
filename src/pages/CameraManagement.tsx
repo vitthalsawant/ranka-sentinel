@@ -46,14 +46,7 @@ interface CameraData {
 
 const CameraManagement: React.FC = () => {
   const [cameras, setCameras] = useState<CameraData[]>([
-    { id: '1', name: 'Main Entrance', location: 'Ground Floor', ipAddress: '192.168.1.101', status: 'online', detectionEnabled: true, lastSeen: 'Now' },
-    { id: '2', name: 'Showroom Floor', location: 'Ground Floor', ipAddress: '192.168.1.102', status: 'online', detectionEnabled: true, lastSeen: 'Now' },
-    { id: '3', name: 'VIP Lounge', location: 'First Floor', ipAddress: '192.168.1.103', status: 'online', detectionEnabled: false, lastSeen: 'Now' },
-    { id: '4', name: 'Storage Room', location: 'Basement', ipAddress: '192.168.1.104', status: 'offline', detectionEnabled: true, lastSeen: '3 hours ago' },
-    { id: '5', name: 'Back Exit', location: 'Ground Floor', ipAddress: '192.168.1.105', status: 'online', detectionEnabled: true, lastSeen: 'Now' },
-    { id: '6', name: 'Jewelry Display A', location: 'Ground Floor', ipAddress: '192.168.1.106', status: 'online', detectionEnabled: true, lastSeen: 'Now' },
-    { id: '7', name: 'Jewelry Display B', location: 'Ground Floor', ipAddress: '192.168.1.107', status: 'online', detectionEnabled: true, lastSeen: 'Now' },
-    { id: '8', name: 'Cash Counter', location: 'Ground Floor', ipAddress: '192.168.1.108', status: 'online', detectionEnabled: true, lastSeen: 'Now' },
+    { id: '1', name: 'Main Camera', location: 'Main Area', ipAddress: '192.168.1.101', status: 'online', detectionEnabled: true, lastSeen: 'Now' },
   ]);
 
   const [newCamera, setNewCamera] = useState({
@@ -263,7 +256,7 @@ const CameraManagement: React.FC = () => {
         ) : (
           <div className={cn(
             'grid gap-4',
-            viewMode === 'grid-4' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+            viewMode === 'grid-4' ? 'grid-cols-1' : 'grid-cols-1'
           )}>
             {cameras.map((camera, index) => (
               <div 

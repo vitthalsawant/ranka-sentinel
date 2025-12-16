@@ -50,13 +50,13 @@ const DetectionSettings: React.FC = () => {
     { id: 'vip', name: 'VIP Recognition', description: 'Notify staff when VIP customers arrive', icon: UserCheck, enabled: true, sensitivity: 90 },
   ]);
   
-  // ROI Configuration state
-  const [roiConfig, setRoiConfig] = useState({
-    x_start_percent: 20,
-    x_end_percent: 80,
-    y_start_percent: 20,
-    y_end_percent: 80
-  });
+  // ROI Configuration state - starts as null, must be set by user
+  const [roiConfig, setRoiConfig] = useState<{
+    x_start_percent: number;
+    x_end_percent: number;
+    y_start_percent: number;
+    y_end_percent: number;
+  } | null>(null);
 
   const [alertSettings, setAlertSettings] = useState({
     email: true,
@@ -93,10 +93,14 @@ const DetectionSettings: React.FC = () => {
           body: JSON.stringify({
             enabled: personCountingMode.enabled,
             sensitivity: personCountingMode.sensitivity,
-            roi_config: roiConfig
+            roi_config: roiConfig  // Can be null if not set
           })
         });
-        toast.success('Detection settings saved and synced with Python API');
+        if (roiConfig) {
+          toast.success('Detection settings saved and synced with Python API');
+        } else {
+          toast.warning('ROI not configured. Counting will not start until ROI is set.');
+        }
       } catch (error) {
         toast.success('Detection settings saved locally');
       }
@@ -109,12 +113,7 @@ const DetectionSettings: React.FC = () => {
     setDetectionModes(modes => 
       modes.map(mode => ({ ...mode, sensitivity: 75 }))
     );
-    setRoiConfig({
-      x_start_percent: 20,
-      x_end_percent: 80,
-      y_start_percent: 20,
-      y_end_percent: 80
-    });
+    setRoiConfig(null);  // Reset ROI to null
     toast.success('Settings reset to defaults');
   };
 
@@ -257,59 +256,81 @@ const DetectionSettings: React.FC = () => {
                         Foot Traffic & ROI Settings
                       </h4>
                       
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-sm">ROI X Start (%)</Label>
-                          <Slider
-                            value={[roiConfig.x_start_percent]}
-                            onValueChange={(v) => setRoiConfig({...roiConfig, x_start_percent: v[0]})}
-                            min={0}
-                            max={50}
-                            step={5}
-                          />
-                          <span className="text-xs text-muted-foreground">{roiConfig.x_start_percent}%</span>
+                      {!roiConfig ? (
+                        <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                          <p className="text-sm text-yellow-400 mb-3">
+                            <strong>⚠️ ROI Not Configured:</strong> Please set the Region of Interest (ROI) rectangle to start counting.
+                          </p>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setRoiConfig({
+                              x_start_percent: 20,
+                              x_end_percent: 80,
+                              y_start_percent: 20,
+                              y_end_percent: 80
+                            })}
+                          >
+                            Initialize ROI Settings
+                          </Button>
                         </div>
-                        <div className="space-y-2">
-                          <Label className="text-sm">ROI X End (%)</Label>
-                          <Slider
-                            value={[roiConfig.x_end_percent]}
-                            onValueChange={(v) => setRoiConfig({...roiConfig, x_end_percent: v[0]})}
-                            min={50}
-                            max={100}
-                            step={5}
-                          />
-                          <span className="text-xs text-muted-foreground">{roiConfig.x_end_percent}%</span>
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-sm">ROI Y Start (%)</Label>
-                          <Slider
-                            value={[roiConfig.y_start_percent]}
-                            onValueChange={(v) => setRoiConfig({...roiConfig, y_start_percent: v[0]})}
-                            min={0}
-                            max={50}
-                            step={5}
-                          />
-                          <span className="text-xs text-muted-foreground">{roiConfig.y_start_percent}%</span>
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-sm">ROI Y End (%)</Label>
-                          <Slider
-                            value={[roiConfig.y_end_percent]}
-                            onValueChange={(v) => setRoiConfig({...roiConfig, y_end_percent: v[0]})}
-                            min={50}
-                            max={100}
-                            step={5}
-                          />
-                          <span className="text-xs text-muted-foreground">{roiConfig.y_end_percent}%</span>
-                        </div>
-                      </div>
-                      
-                      <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                        <p className="text-sm text-blue-400">
-                          <strong>ROI (Region of Interest):</strong> Define the area where people will be counted. 
-                          Adjust the percentages to set the detection zone boundaries.
-                        </p>
-                      </div>
+                      ) : (
+                        <>
+                          <div className="grid md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label className="text-sm">ROI X Start (%)</Label>
+                              <Slider
+                                value={[roiConfig.x_start_percent]}
+                                onValueChange={(v) => setRoiConfig({...roiConfig, x_start_percent: v[0]})}
+                                min={0}
+                                max={50}
+                                step={5}
+                              />
+                              <span className="text-xs text-muted-foreground">{roiConfig.x_start_percent}%</span>
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-sm">ROI X End (%)</Label>
+                              <Slider
+                                value={[roiConfig.x_end_percent]}
+                                onValueChange={(v) => setRoiConfig({...roiConfig, x_end_percent: v[0]})}
+                                min={50}
+                                max={100}
+                                step={5}
+                              />
+                              <span className="text-xs text-muted-foreground">{roiConfig.x_end_percent}%</span>
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-sm">ROI Y Start (%)</Label>
+                              <Slider
+                                value={[roiConfig.y_start_percent]}
+                                onValueChange={(v) => setRoiConfig({...roiConfig, y_start_percent: v[0]})}
+                                min={0}
+                                max={50}
+                                step={5}
+                              />
+                              <span className="text-xs text-muted-foreground">{roiConfig.y_start_percent}%</span>
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-sm">ROI Y End (%)</Label>
+                              <Slider
+                                value={[roiConfig.y_end_percent]}
+                                onValueChange={(v) => setRoiConfig({...roiConfig, y_end_percent: v[0]})}
+                                min={50}
+                                max={100}
+                                step={5}
+                              />
+                              <span className="text-xs text-muted-foreground">{roiConfig.y_end_percent}%</span>
+                            </div>
+                          </div>
+                          
+                          <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+                            <p className="text-sm text-blue-400">
+                              <strong>ROI (Region of Interest):</strong> Define the area where people will be counted. 
+                              Adjust the percentages to set the detection zone boundaries.
+                            </p>
+                          </div>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>

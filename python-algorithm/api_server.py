@@ -48,12 +48,7 @@ person_counting_data = {
     "peak_occupancy": 0,
     "peak_time": None,
     "hourly_foot_traffic": {},
-    "roi_config": {
-        "x_start_percent": 20,
-        "x_end_percent": 80,
-        "y_start_percent": 20,
-        "y_end_percent": 80
-    }
+    "roi_config": None  # ROI must be set by user in dashboard
 }
 
 detections = []
@@ -188,7 +183,13 @@ def update_person_counting_settings():
         # Convert sensitivity (0-100) to confidence threshold (0.5-0.95)
         person_counting_data['confidence_threshold'] = 0.5 + (data['sensitivity'] / 100) * 0.45
     if 'roi_config' in data:
-        person_counting_data['roi_config'].update(data['roi_config'])
+        # If ROI config is provided, update it (can be None or a dict)
+        if data['roi_config'] is None:
+            person_counting_data['roi_config'] = None
+        elif isinstance(data['roi_config'], dict):
+            if person_counting_data['roi_config'] is None:
+                person_counting_data['roi_config'] = {}
+            person_counting_data['roi_config'].update(data['roi_config'])
     
     return jsonify({
         "success": True,
@@ -244,11 +245,25 @@ def video_stream():
     """Stream video frames as MJPEG"""
     def generate():
         global current_frame, frame_lock
+        # Create a placeholder frame when no camera is active
+        placeholder = np.zeros((480, 640, 3), dtype=np.uint8)
+        cv2.putText(placeholder, 'Camera Not Active', (150, 200), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+        cv2.putText(placeholder, 'Run: python people_counter_api.py', (80, 250), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (200, 200, 200), 2)
+        
         while True:
             with frame_lock:
                 if current_frame is not None:
                     # Encode frame as JPEG
                     ret, buffer = cv2.imencode('.jpg', current_frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                    if ret:
+                        frame_bytes = buffer.tobytes()
+                        yield (b'--frame\r\n'
+                               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+                else:
+                    # Send placeholder frame when camera is not active
+                    ret, buffer = cv2.imencode('.jpg', placeholder, [cv2.IMWRITE_JPEG_QUALITY, 85])
                     if ret:
                         frame_bytes = buffer.tobytes()
                         yield (b'--frame\r\n'

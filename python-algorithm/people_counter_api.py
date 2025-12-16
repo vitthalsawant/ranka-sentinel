@@ -54,27 +54,24 @@ def get_settings_from_api():
     """Fetch current settings from dashboard"""
     data = get_from_api("/api/person-counting")
     if data:
+        roi_config = data.get("roi_config")
+        # Check if ROI is properly configured (not None and has valid values)
+        roi_valid = roi_config is not None and isinstance(roi_config, dict) and \
+                   all(key in roi_config for key in ["x_start_percent", "x_end_percent", "y_start_percent", "y_end_percent"])
+        
         return {
             "enabled": data.get("enabled", True),
             "sensitivity": data.get("sensitivity", 80),
             "confidence_threshold": 0.5 + (data.get("sensitivity", 80) / 100) * 0.45,
-            "roi_config": data.get("roi_config", {
-                "x_start_percent": 20,
-                "x_end_percent": 80,
-                "y_start_percent": 20,
-                "y_end_percent": 80
-            })
+            "roi_config": roi_config if roi_valid else None,
+            "roi_valid": roi_valid
         }
     return {
         "enabled": True,
         "sensitivity": 80,
         "confidence_threshold": 0.8,
-        "roi_config": {
-            "x_start_percent": 20,
-            "x_end_percent": 80,
-            "y_start_percent": 20,
-            "y_end_percent": 80
-        }
+        "roi_config": None,
+        "roi_valid": False
     }
 
 # ============================================
@@ -149,6 +146,8 @@ def run_detection():
     print(f"[INFO] Camera resolution: {width}x{height}")
     print("[INFO] Starting detection... Press 'q' to quit")
     print("[INFO] Sending data to dashboard at http://localhost:5000")
+    print("[INFO] ⚠️  IMPORTANT: ROI region must be configured in dashboard before counting starts!")
+    print("[INFO]    Go to Detection Settings and set the ROI rectangle to begin detection.")
     
     # Detection variables
     centers_old = {}
@@ -157,6 +156,12 @@ def run_detection():
     frame_count = 0
     start_time = time.time()
     last_api_update = 0
+    
+    # Initialize settings
+    settings = get_settings_from_api()
+    conf_level = settings["confidence_threshold"]
+    roi_cfg = settings["roi_config"]
+    roi_valid = settings["roi_valid"]
     
     while True:
         ret, frame = video.read()
@@ -169,19 +174,56 @@ def run_detection():
             settings = get_settings_from_api()
             conf_level = settings["confidence_threshold"]
             roi_cfg = settings["roi_config"]
+            roi_valid = settings["roi_valid"]
             last_api_update = time.time()
         else:
-            conf_level = 0.8
-            roi_cfg = {"x_start_percent": 20, "x_end_percent": 80, "y_start_percent": 20, "y_end_percent": 80}
+            # Use cached settings
+            pass
         
         frame = resize_frame(frame, scale_percent)
         current_height, current_width = frame.shape[:2]
+        
+        # Only process if ROI is configured from dashboard
+        if not roi_valid or roi_cfg is None:
+            # Show message that ROI needs to be configured
+            cv2.putText(frame, 'ROI not configured!', (30, 40), 
+                       cv2.FONT_HERSHEY_TRIPLEX, 1.2, (0, 0, 255), 2)
+            cv2.putText(frame, 'Please set ROI region in dashboard', (30, 80), 
+                       cv2.FONT_HERSHEY_TRIPLEX, 0.8, (0, 0, 255), 2)
+            cv2.putText(frame, 'Detection paused until ROI is set', (30, 120), 
+                       cv2.FONT_HERSHEY_TRIPLEX, 0.8, (255, 255, 0), 2)
+            
+            # Send frame to API for streaming even when ROI not configured
+            try:
+                _, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
+                requests.post(f"{API_BASE_URL}/api/internal/update-frame", 
+                            files={'frame': buffer.tobytes()},
+                            timeout=0.1)
+            except:
+                pass
+            
+            # Still show frame but don't process
+            cv2.imshow('People Detection - Press Q to quit', frame)
+            frame_count += 1
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+            continue
         
         # Calculate ROI from settings
         roi_x_start = int(current_width * roi_cfg["x_start_percent"] / 100)
         roi_x_end = int(current_width * roi_cfg["x_end_percent"] / 100)
         roi_y_start = int(current_height * roi_cfg["y_start_percent"] / 100)
         roi_y_end = int(current_height * roi_cfg["y_end_percent"] / 100)
+        
+        # Validate ROI bounds
+        if roi_x_start >= roi_x_end or roi_y_start >= roi_y_end:
+            cv2.putText(frame, 'Invalid ROI configuration!', (30, 40), 
+                       cv2.FONT_HERSHEY_TRIPLEX, 1.0, (0, 0, 255), 2)
+            cv2.imshow('People Detection - Press Q to quit', frame)
+            frame_count += 1
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+            continue
         
         area_roi = [np.array([
             (roi_x_start, roi_y_start),
@@ -192,7 +234,7 @@ def run_detection():
         
         ROI = frame[roi_y_start:roi_y_end, roi_x_start:roi_x_end]
         
-        # Run YOLO detection
+        # Run YOLO detection only when ROI is valid
         y_hat = model.predict(ROI, conf=conf_level, classes=[0], device='cpu', verbose=False)
         
         boxes = y_hat[0].boxes.xyxy.cpu().numpy()
@@ -277,4 +319,14 @@ if __name__ == '__main__':
     print("  python api_server.py")
     print("\nThis script will send detection data to the dashboard.")
     print("=" * 60)
-    run_detection()
+    
+    # Ask user if they want to open the camera
+    print("\nDo you want to open the camera and start counting?")
+    user_input = input("Enter 'y' or 'yes' to start, or any other key to exit: ").strip().lower()
+    
+    if user_input in ['y', 'yes']:
+        print("\n[INFO] Opening camera...")
+        run_detection()
+    else:
+        print("\n[INFO] Camera not opened. Exiting...")
+        print("Run the script again and enter 'y' when prompted to start detection.")

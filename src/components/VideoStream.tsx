@@ -33,23 +33,45 @@ const VideoStream: React.FC<VideoStreamProps> = ({
 
     // For MJPEG stream, use img tag
     const img = videoRef.current;
-    img.src = streamUrl;
+    
+    // MJPEG stream URL - add timestamp to prevent caching
+    const urlWithTimestamp = streamUrl + (streamUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+    img.src = urlWithTimestamp;
+
+    let loadTimeout: NodeJS.Timeout;
+    let errorTimeout: NodeJS.Timeout;
 
     const handleLoad = () => {
       setIsLoading(false);
       setHasError(false);
+      // Clear any pending error timeout
+      if (errorTimeout) clearTimeout(errorTimeout);
+      
+      // For MJPEG streams, the browser may cache the image
+      // Force refresh by updating src periodically
+      loadTimeout = setTimeout(() => {
+        if (img && img.parentElement) {
+          const newUrl = streamUrl + (streamUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+          img.src = newUrl;
+        }
+      }, 100);
     };
 
-    const handleError = () => {
+    const handleError = (e: Event) => {
+      console.error('Video stream error:', e);
       setIsLoading(false);
-      setHasError(true);
-      // Retry after 2 seconds
-      setTimeout(() => {
-        setRetryCount(prev => prev + 1);
-        if (img) {
-          img.src = streamUrl + '?t=' + Date.now();
-        }
-      }, 2000);
+      
+      // Don't immediately show error - MJPEG streams can have temporary issues
+      errorTimeout = setTimeout(() => {
+        setHasError(true);
+        // Retry after 2 seconds
+        setTimeout(() => {
+          setRetryCount(prev => prev + 1);
+          if (img && img.parentElement) {
+            img.src = streamUrl + (streamUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+          }
+        }, 2000);
+      }, 1000);
     };
 
     img.addEventListener('load', handleLoad);
@@ -58,6 +80,8 @@ const VideoStream: React.FC<VideoStreamProps> = ({
     return () => {
       img.removeEventListener('load', handleLoad);
       img.removeEventListener('error', handleError);
+      if (loadTimeout) clearTimeout(loadTimeout);
+      if (errorTimeout) clearTimeout(errorTimeout);
     };
   }, [streamUrl, retryCount]);
 
