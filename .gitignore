@@ -28,3 +28,10 @@ dist-ssr
 *.pth
 *.onnx
 python-algorithm/yolov8x.pt
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
