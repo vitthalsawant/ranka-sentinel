@@ -35,3 +35,9 @@ __pycache__/
 *$py.class
 *.so
 .Python
+
+# Large datasets and model files
+python-algorithm/CCTV Gender Classifier Dataset/
+python-algorithm/dataset/
+python-algorithm/models/*.h5
+python-algorithm/outputs/*.png
