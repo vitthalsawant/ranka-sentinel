@@ -7,12 +7,35 @@ Place your Python algorithm files in this folder.
 ### 1. Install Required Dependencies
 
 ```bash
-pip install flask flask-cors opencv-python numpy
+pip install -r requirements.txt
 ```
 
-### 2. Configure Your Algorithm
+This will install all required packages including:
+- Flask and Flask-CORS for API server
+- OpenCV for image processing
+- TensorFlow for gender classification model
+- Ultralytics for YOLOv8 person detection
+- And other dependencies
 
-Edit `api_server.py` to integrate your detection logic.
+### 2. Train Gender Classification Model (Optional but Recommended)
+
+The system uses a CNN model for gender classification. To train the model:
+
+```bash
+# First, organize the dataset (if not already done)
+python organize_dataset.py
+
+# Then train the model
+python train_gender_model.py
+```
+
+The training script will:
+- Load images from `dataset/train/` and `dataset/validation/`
+- Train a CNN model with data augmentation
+- Save the best model to `models/gender_classifier.h5`
+- Evaluate on test set and generate metrics
+
+**Note**: If the model is not trained, the system will fall back to heuristic-based gender classification.
 
 ### 3. Run the API Server
 
@@ -21,6 +44,20 @@ python api_server.py
 ```
 
 The server will start on `http://localhost:5000`
+
+### 4. Run People Detection and Counting
+
+In a separate terminal:
+
+```bash
+python people_counter_api.py
+```
+
+This will:
+- Load YOLOv8 model for person detection
+- Load gender classification model (if available)
+- Start camera feed and detection
+- Send data to the API server
 
 ## API Endpoints
 

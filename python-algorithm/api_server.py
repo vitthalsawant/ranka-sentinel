@@ -51,6 +51,15 @@ person_counting_data = {
     "roi_config": None  # ROI must be set by user in dashboard
 }
 
+# Gender classification specific data
+gender_classification_data = {
+    "enabled": True,
+    "male_count": 0,
+    "female_count": 0,
+    "total_count": 0,
+    "last_update": None
+}
+
 detections = []
 heatmap_data = []
 camera_status = {
@@ -100,8 +109,10 @@ def api_info():
             "GET /api/detections": "Get recent detections",
             "GET /api/heatmap": "Get heatmap data",
             "GET /api/person-counting": "Get person counting specific data",
+            "GET /api/gender-classification": "Get gender classification data",
             "POST /api/person-counting/settings": "Update counting settings",
             "POST /api/person-counting/update": "Update count from detection script",
+            "POST /api/gender-classification/update": "Update gender classification data",
             "POST /api/internal/update-count": "Internal count update endpoint"
         }
     })
@@ -121,15 +132,16 @@ def get_status():
 
 @app.route('/api/analytics', methods=['GET'])
 def get_analytics():
-    """Get current analytics data including person counting"""
+    """Get current analytics data including person counting and gender classification"""
     return jsonify({
         "total_visitors": analytics_data["total_visitors"],
-        "male_count": analytics_data["male_count"],
-        "female_count": analytics_data["female_count"],
+        "male_count": gender_classification_data["male_count"],  # Use gender classification data
+        "female_count": gender_classification_data["female_count"],  # Use gender classification data
         "current_occupancy": analytics_data["current_occupancy"],
         "hourly_data": analytics_data["hourly_data"],
         "age_distribution": analytics_data["age_distribution"],
         "person_counting": person_counting_data,
+        "gender_classification": gender_classification_data,
         "timestamp": datetime.now().isoformat()
     })
 
@@ -237,6 +249,57 @@ def internal_update_count():
         "success": True,
         "total_count": person_counting_data["total_count"],
         "current_in_roi": person_counting_data["current_in_roi"]
+    })
+
+
+@app.route('/api/gender-classification/update', methods=['POST'])
+def update_gender_classification():
+    """Update gender classification data from service"""
+    global gender_classification_data, analytics_data
+    data = request.get_json()
+    
+    male_count = data.get('male_count', gender_classification_data['male_count'])
+    female_count = data.get('female_count', gender_classification_data['female_count'])
+    total_count_from_data = data.get('total_count', 0)
+    
+    # Ensure consistency: total_count = male_count + female_count
+    calculated_total = male_count + female_count
+    
+    # Use calculated total to ensure consistency
+    gender_classification_data['male_count'] = male_count
+    gender_classification_data['female_count'] = female_count
+    gender_classification_data['total_count'] = calculated_total  # Always use calculated total
+    gender_classification_data['last_update'] = datetime.now().isoformat()
+    
+    # Also update analytics data (use calculated total for consistency)
+    analytics_data['male_count'] = male_count
+    analytics_data['female_count'] = female_count
+    analytics_data['total_visitors'] = calculated_total  # Use calculated total
+    
+    # Log if there's a mismatch (for debugging)
+    if total_count_from_data != calculated_total:
+        print(f"[WARNING] Total count mismatch: received {total_count_from_data}, calculated {calculated_total}")
+        print(f"[INFO] Using calculated total: {calculated_total} = {male_count} (male) + {female_count} (female)")
+    
+    return jsonify({
+        "success": True,
+        "message": "Gender classification data updated successfully",
+        "male_count": gender_classification_data["male_count"],
+        "female_count": gender_classification_data["female_count"],
+        "total_count": gender_classification_data["total_count"]
+    })
+
+
+@app.route('/api/gender-classification', methods=['GET'])
+def get_gender_classification():
+    """Get gender classification data"""
+    return jsonify({
+        "enabled": gender_classification_data["enabled"],
+        "male_count": gender_classification_data["male_count"],
+        "female_count": gender_classification_data["female_count"],
+        "total_count": gender_classification_data["total_count"],
+        "last_update": gender_classification_data["last_update"],
+        "timestamp": datetime.now().isoformat()
     })
 
 

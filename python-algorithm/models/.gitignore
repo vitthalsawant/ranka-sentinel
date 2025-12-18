@@ -1,0 +1,17 @@
+# Ignore model files (they are too large for git)
+*.h5
+*.hdf5
+*.pb
+*.pkl
+*.ckpt
+*.savedmodel
+*.saved_model
+
+# Ignore training outputs
+training_history.png
+confusion_matrix.png
+*.png
+*.jpg
+
+# Keep directory structure
+!.gitignore
