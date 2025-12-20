@@ -5,10 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Building2, Users, AlertTriangle, Search, MoreVertical, Settings, Loader2 } from 'lucide-react';
+import { Building2, Users, AlertTriangle, Search, MoreVertical, Settings, Loader2, UserPlus, Clock } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { getDummyUsers } from '@/contexts/MockAuthContext';
 
 interface CustomerProfile {
   id: string;
@@ -36,29 +36,35 @@ const AdminDashboard: React.FC = () => {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingCompanies, setIsLoadingCompanies] = useState(true);
-  const [activeTab, setActiveTab] = useState<'customers' | 'companies'>('customers');
+  const [activeTab, setActiveTab] = useState<'companies' | 'registrations'>('registrations');
+  const [registrationFilter, setRegistrationFilter] = useState<'all' | 'pending' | 'approved'>('all');
 
   useEffect(() => {
-    // Fetch both in parallel for better performance
-    Promise.all([fetchCustomers(), fetchCompanies()]);
+    // Load mock data
+    fetchCustomers();
+    fetchCompanies();
   }, []);
 
   const fetchCompanies = async () => {
     try {
       setIsLoadingCompanies(true);
-      const { data, error } = await supabase
-        .from('companies')
-        .select('id, name, contact_email, contact_phone, address, is_active, created_at')
-        .order('created_at', { ascending: false })
-        .limit(1000); // Add limit for performance
-
-      if (error) {
-        console.error('Error fetching companies:', error);
-        toast.error('Failed to load companies');
-        return;
-      }
-
-      setCompanies((data || []) as Company[]);
+      
+      // Get customers and convert them to companies (customers ARE companies)
+      const dummyUsers = getDummyUsers();
+      const customerUsers = dummyUsers.filter(u => u.role === 'customer');
+      
+      // Map customers to companies format
+      const mockCompanies: Company[] = customerUsers.map((user, index) => ({
+        id: `company-${index + 1}`,
+        name: user.fullName, // Company name is the customer name
+        contact_email: user.email,
+        contact_phone: user.phone || null,
+        address: `${index + 1}${index === 0 ? '23 Business Street' : index === 1 ? '56 Corporate Avenue' : '89 Business Park'}, ${index === 0 ? 'Mumbai' : index === 1 ? 'Delhi' : 'Bangalore'}`,
+        is_active: true,
+        created_at: user.createdAt.toISOString(),
+      }));
+      
+      setCompanies(mockCompanies);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Failed to load companies');
@@ -71,75 +77,30 @@ const AdminDashboard: React.FC = () => {
     try {
       setIsLoading(true);
       
-      // Optimized: Use RPC function which is faster and has proper indexes
-      const { data: registrations, error: funcError } = await supabase
-        .rpc('get_all_registrations');
-
-      if (funcError) {
-        console.warn('Function error, falling back to direct query:', funcError);
-        
-        // Fallback: Direct query with optimized select
-        const { data: customerRoles, error: roleError } = await supabase
-          .from('user_roles')
-          .select('user_id')
-          .eq('role', 'customer')
-          .limit(1000);
-
-        if (roleError) {
-          console.error('Error fetching customer roles:', roleError);
-          toast.error('Failed to load customers');
-          return;
-        }
-
-        const customerUserIds = customerRoles?.map(r => r.user_id) || [];
-
-        if (customerUserIds.length === 0) {
-          setCustomers([]);
-          setIsLoading(false);
-          return;
-        }
-
-        // Fetch profiles for customer users with optimized select
-        const { data: profiles, error } = await supabase
-          .from('profiles')
-          .select('id, user_id, full_name, email, phone, created_at, is_approved, company_id')
-          .in('user_id', customerUserIds)
-          .order('created_at', { ascending: false })
-          .limit(1000);
-
-        if (error) {
-          console.error('Error fetching profiles:', error);
-          toast.error('Failed to load customers');
-          return;
-        }
-
-        setCustomers((profiles || []) as CustomerProfile[]);
-      } else {
-        // Use function result - map to CustomerProfile format
-        const mappedCustomers = (registrations || []).map((r: any) => ({
-          id: r.id,
-          full_name: r.full_name,
-          email: r.email,
-          phone: r.phone,
-          created_at: r.created_at,
-          is_approved: r.is_approved,
-          company_id: r.company_id,
-        }));
-        setCustomers(mappedCustomers);
-      }
+      // Get dummy users and filter for customers (these are companies)
+      const dummyUsers = getDummyUsers();
+      const customerUsers = dummyUsers.filter(u => u.role === 'customer');
+      
+      // Map customers to companies format (customers ARE companies)
+      const mappedCustomers: CustomerProfile[] = customerUsers.map((user, index) => ({
+        id: user.id,
+        full_name: user.fullName,
+        email: user.email,
+        phone: user.phone || null,
+        created_at: user.createdAt.toISOString(),
+        is_approved: true,
+        company_id: `company-${index + 1}`,
+      }));
+      
+      setCustomers(mappedCustomers);
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Failed to load customers');
+      toast.error('Failed to load companies');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const filteredCustomers = customers.filter(customer =>
-    customer.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.phone?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   const filteredCompanies = companies.filter(company =>
     company.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -147,8 +108,17 @@ const AdminDashboard: React.FC = () => {
     company.contact_phone?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const activeCustomers = customers.filter(c => c.is_approved).length;
   const activeCompanies = companies.filter(c => c.is_active).length;
+  const pendingRegistrations = customers.filter(c => !c.is_approved).length;
+  const recentRegistrations = [...customers]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 10);
+  
+  const filteredRegistrations = registrationFilter === 'all' 
+    ? recentRegistrations 
+    : recentRegistrations.filter(c => 
+        registrationFilter === 'pending' ? !c.is_approved : c.is_approved
+      );
 
 
   return (
@@ -158,30 +128,37 @@ const AdminDashboard: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="font-display text-3xl font-bold">Admin Dashboard</h1>
-            <p className="text-muted-foreground">View and manage customers and companies</p>
+            <p className="text-muted-foreground">View and manage company registrations</p>
           </div>
         </div>
 
         {/* Tabs */}
         <div className="flex gap-2 border-b">
           <button
-            onClick={() => setActiveTab('customers')}
-            className={`px-4 py-2 font-medium transition-colors ${
-              activeTab === 'customers'
+            onClick={() => setActiveTab('registrations')}
+            className={`px-4 py-2 font-medium transition-colors flex items-center gap-2 ${
+              activeTab === 'registrations'
                 ? 'border-b-2 border-primary text-primary'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            Customers
+            <UserPlus className="w-4 h-4" />
+            Registrations
+            {pendingRegistrations > 0 && (
+              <span className="px-2 py-0.5 text-xs rounded-full bg-orange-500/20 text-orange-500">
+                {pendingRegistrations}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab('companies')}
-            className={`px-4 py-2 font-medium transition-colors ${
+            className={`px-4 py-2 font-medium transition-colors flex items-center gap-2 ${
               activeTab === 'companies'
                 ? 'border-b-2 border-primary text-primary'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
+            <Building2 className="w-4 h-4" />
             Companies
           </button>
         </div>
@@ -192,11 +169,11 @@ const AdminDashboard: React.FC = () => {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg gold-gradient flex items-center justify-center">
-                  <Users className="w-5 h-5 text-background" />
+                  <UserPlus className="w-5 h-5 text-background" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{customers.length}</p>
-                  <p className="text-xs text-muted-foreground">Total Customers</p>
+                  <p className="text-xs text-muted-foreground">Total Registrations</p>
                 </div>
               </div>
             </CardContent>
@@ -208,8 +185,8 @@ const AdminDashboard: React.FC = () => {
                   <Users className="w-5 h-5 text-green-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{activeCustomers}</p>
-                  <p className="text-xs text-muted-foreground">Approved</p>
+                  <p className="text-2xl font-bold">{companies.length}</p>
+                  <p className="text-xs text-muted-foreground">Total Companies</p>
                 </div>
               </div>
             </CardContent>
@@ -218,11 +195,11 @@ const AdminDashboard: React.FC = () => {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-orange-500/20 flex items-center justify-center">
-                  <AlertTriangle className="w-5 h-5 text-orange-500" />
+                  <Clock className="w-5 h-5 text-orange-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{customers.length - activeCustomers}</p>
-                  <p className="text-xs text-muted-foreground">Pending</p>
+                  <p className="text-2xl font-bold">{activeCompanies}</p>
+                  <p className="text-xs text-muted-foreground">Active Companies</p>
                 </div>
               </div>
             </CardContent>
@@ -234,105 +211,142 @@ const AdminDashboard: React.FC = () => {
                   <Building2 className="w-5 h-5 text-blue-500" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold">{companies.length}</p>
-                  <p className="text-xs text-muted-foreground">Companies</p>
+                  <p className="text-2xl font-bold">{customers.length}</p>
+                  <p className="text-xs text-muted-foreground">Registrations</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Search */}
-        <div className="relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder={activeTab === 'customers' ? 'Search customers...' : 'Search companies...'}
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <div className="relative max-w-md w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder={
+                activeTab === 'registrations' ? 'Search registrations...' : 
+                'Search companies...'
+              }
+              className="pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          {activeTab === 'registrations' && (
+            <div className="flex gap-2">
+              <Button
+                variant={registrationFilter === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setRegistrationFilter('all')}
+              >
+                All
+              </Button>
+              <Button
+                variant={registrationFilter === 'pending' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setRegistrationFilter('pending')}
+              >
+                Pending
+              </Button>
+              <Button
+                variant={registrationFilter === 'approved' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setRegistrationFilter('approved')}
+              >
+                Approved
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Loading State */}
-        {(isLoading && activeTab === 'customers') || (isLoadingCompanies && activeTab === 'companies') ? (
+        {(isLoading && activeTab === 'registrations') || (isLoadingCompanies && activeTab === 'companies') ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
           </div>
-        ) : activeTab === 'customers' ? (
-          /* Customers Tab */
-          filteredCustomers.length === 0 ? (
+        ) : activeTab === 'registrations' ? (
+          /* Registrations Tab */
+          filteredRegistrations.length === 0 ? (
             <Card className="glass-card">
               <CardContent className="p-12 text-center">
-                <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+                <UserPlus className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
                 <p className="text-muted-foreground">
-                  {searchQuery ? 'No customers found matching your search.' : 'No registered customers yet.'}
+                  {searchQuery ? 'No registrations found matching your search.' : 'No registrations yet.'}
                 </p>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredCustomers.map((customer) => (
-              <Card 
-                key={customer.id} 
-                className={`glass-card hover-lift transition-all ${!customer.is_approved ? 'opacity-75' : ''}`}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl gold-gradient flex items-center justify-center text-background font-bold text-lg">
-                        {customer.full_name.charAt(0).toUpperCase()}
+            <div className="space-y-4">
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredRegistrations
+                  .filter(reg => 
+                    reg.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    reg.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    reg.phone?.toLowerCase().includes(searchQuery.toLowerCase())
+                  )
+                  .map((customer) => (
+                  <Card 
+                    key={customer.id} 
+                    className={`glass-card hover-lift transition-all ${!customer.is_approved ? 'border-orange-500/50' : ''}`}
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-xl gold-gradient flex items-center justify-center text-background font-bold text-lg">
+                            {customer.full_name.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <CardTitle className="text-lg">{customer.full_name}</CardTitle>
+                            <p className="text-xs text-muted-foreground">{customer.email}</p>
+                          </div>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={async () => {
+                              // Update approval status in mock data
+                              const updatedCustomers = customers.map(c => 
+                                c.id === customer.id ? { ...c, is_approved: !c.is_approved } : c
+                              );
+                              setCustomers(updatedCustomers);
+                              toast.success(`Registration ${customer.is_approved ? 'unapproved' : 'approved'}`);
+                            }}>
+                              <Settings className="w-4 h-4 mr-2" />
+                              {customer.is_approved ? 'Unapprove' : 'Approve'}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
-                      <div>
-                        <CardTitle className="text-lg">{customer.full_name}</CardTitle>
-                        <p className="text-xs text-muted-foreground">{customer.email}</p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2 mb-4">
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-muted-foreground">Phone:</span>
+                          <span>{customer.phone || 'Not provided'}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-muted-foreground">Registered:</span>
+                          <span>{new Date(customer.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="text-muted-foreground">Time:</span>
+                          <span>{new Date(customer.created_at).toLocaleTimeString()}</span>
+                        </div>
                       </div>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={async () => {
-                          const { error } = await supabase
-                            .from('profiles')
-                            .update({ is_approved: !customer.is_approved })
-                            .eq('id', customer.id);
-                          
-                          if (error) {
-                            toast.error('Failed to update approval status');
-                          } else {
-                            toast.success(`Customer ${customer.is_approved ? 'unapproved' : 'approved'}`);
-                            fetchCustomers();
-                          }
-                        }}>
-                          <Settings className="w-4 h-4 mr-2" />
-                          {customer.is_approved ? 'Unapprove' : 'Approve'}
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-muted-foreground">Phone:</span>
-                      <span>{customer.phone || 'Not provided'}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-muted-foreground">Registered:</span>
-                      <span>{new Date(customer.created_at).toLocaleDateString()}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className={`px-2 py-1 rounded-full text-xs ${customer.is_approved ? 'bg-green-500/20 text-green-500' : 'bg-orange-500/20 text-orange-500'}`}>
-                      {customer.is_approved ? 'Approved' : 'Pending Approval'}
-                    </span>
-                  </div>
-                </CardContent>
-              </Card>
-              ))}
+                      <div className="flex items-center justify-between">
+                        <span className={`px-2 py-1 rounded-full text-xs ${customer.is_approved ? 'bg-green-500/20 text-green-500' : 'bg-orange-500/20 text-orange-500'}`}>
+                          {customer.is_approved ? 'Approved' : 'Pending Approval'}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
             </div>
           )
         ) : (
@@ -372,17 +386,12 @@ const AdminDashboard: React.FC = () => {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={async () => {
-                            const { error } = await supabase
-                              .from('companies')
-                              .update({ is_active: !company.is_active })
-                              .eq('id', company.id);
-                            
-                            if (error) {
-                              toast.error('Failed to update company status');
-                            } else {
-                              toast.success(`Company ${company.is_active ? 'deactivated' : 'activated'}`);
-                              fetchCompanies();
-                            }
+                            // Update company status in mock data
+                            const updatedCompanies = companies.map(c => 
+                              c.id === company.id ? { ...c, is_active: !c.is_active } : c
+                            );
+                            setCompanies(updatedCompanies);
+                            toast.success(`Company ${company.is_active ? 'deactivated' : 'activated'}`);
                           }}>
                             <Settings className="w-4 h-4 mr-2" />
                             {company.is_active ? 'Deactivate' : 'Activate'}

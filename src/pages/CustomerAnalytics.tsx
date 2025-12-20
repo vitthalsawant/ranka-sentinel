@@ -50,7 +50,7 @@ const AGE_DISTRIBUTION = [
 ];
 
 const CustomerAnalytics: React.FC = () => {
-  const { analytics, isConnected, error, refreshAll, lastUpdate, isLoading } = usePythonAPI(3000); // 3 second refresh for more responsive updates
+  const { analytics, isConnected, error, refreshAll, lastUpdate, isLoading } = usePythonAPI(5000); // 5 second refresh to reduce API load
   const { exportToCSV, exportToPDF } = useAnalyticsExport();
 
   // Use API data if connected, otherwise use mock data

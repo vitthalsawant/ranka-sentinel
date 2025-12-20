@@ -368,7 +368,7 @@ def internal_update_frame():
             if frame is not None:
                 with frame_lock:
                     current_frame = frame.copy()
-                return jsonify({"success": True})
+                return jsonify({"success": True}), 200
         elif request.content_type and 'image' in request.content_type:
             # Handle raw image data
             frame_data = request.data
@@ -377,9 +377,10 @@ def internal_update_frame():
             if frame is not None:
                 with frame_lock:
                     current_frame = frame.copy()
-                return jsonify({"success": True})
+                return jsonify({"success": True}), 200
     except Exception as e:
-        print(f"[ERROR] Failed to update frame: {e}")
+        # Only log actual errors, not every request
+        pass  # Silent fail for performance
     return jsonify({"success": False}), 400
 
 
@@ -565,4 +566,9 @@ if __name__ == '__main__':
     print("  python people_counter_api.py")
     print("=" * 60)
     
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    # Disable Flask request logging to reduce console spam
+    import logging
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.ERROR)  # Only show errors, not every request
+    
+    app.run(host='0.0.0.0', port=5000, debug=False)  # Set to False to reduce logging

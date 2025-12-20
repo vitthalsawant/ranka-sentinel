@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DataMorphosisLogo } from '@/components/DataMorphosisLogo';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/MockAuthContext';
 import { Eye, EyeOff, Mail, Lock, Loader2, Brain } from 'lucide-react';
 
 const Login: React.FC = () => {
@@ -44,6 +44,18 @@ const Login: React.FC = () => {
     }
   }, [isAuthenticated, user, navigate]);
 
+  // Also redirect after successful login (handles case where state updates after form submit)
+  useEffect(() => {
+    if (isAuthenticated && user && !isSubmitting) {
+      const redirectPath = {
+        admin: '/admin',
+        employee: '/employee',
+        customer: '/customer',
+      }[user.role as string] || '/customer';
+      navigate(redirectPath, { replace: true });
+    }
+  }, [isAuthenticated, user, isSubmitting, navigate]);
+
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     
@@ -77,9 +89,9 @@ const Login: React.FC = () => {
       });
       
       if (success) {
-        // Login successful - redirect will happen via useEffect
+        // Login successful - redirect will happen via useEffect when user state updates
         // Don't reset isSubmitting here, let redirect happen
-        console.log('Login successful, waiting for redirect...');
+        console.log('Login successful, redirecting...');
       } else {
         // Login failed - reset submitting state
         setIsSubmitting(false);

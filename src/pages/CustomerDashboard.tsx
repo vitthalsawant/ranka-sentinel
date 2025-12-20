@@ -17,7 +17,7 @@ const MOCK_CAMERAS = [
 
 const CustomerDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { analytics, detections, isConnected, error, refreshAll } = usePythonAPI(3000); // 3 second refresh for more responsive updates
+  const { analytics, detections, isConnected, error, refreshAll } = usePythonAPI(5000); // 5 second refresh to reduce API load
   const [roiConfig, setRoiConfig] = useState<{
     x_start_percent: number;
     x_end_percent: number;

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DataMorphosisLogo } from '@/components/DataMorphosisLogo';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/MockAuthContext';
 import { Eye, EyeOff, User, Mail, Phone, Loader2, Shield } from 'lucide-react';
 
 const Register: React.FC = () => {
@@ -35,9 +35,22 @@ const Register: React.FC = () => {
         customer: '/customer',
       }[user.role as string] || '/customer';
       
+      setIsSubmitting(false); // Reset submitting state before redirect
       navigate(redirectPath, { replace: true });
     }
   }, [isAuthenticated, user, navigate]);
+
+  // Also redirect after successful registration (handles case where state updates after form submit)
+  useEffect(() => {
+    if (isAuthenticated && user && !isSubmitting) {
+      const redirectPath = {
+        admin: '/admin',
+        employee: '/employee',
+        customer: '/customer',
+      }[user.role as string] || '/customer';
+      navigate(redirectPath, { replace: true });
+    }
+  }, [isAuthenticated, user, isSubmitting, navigate]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -95,7 +108,11 @@ const Register: React.FC = () => {
         acceptTerms: formData.acceptTerms,
       });
       
-      if (!success) {
+      if (success) {
+        // Registration successful - redirect will happen via useEffect when user state updates
+        // Don't reset isSubmitting here, let redirect happen
+        console.log('Registration successful, redirecting...');
+      } else {
         setIsSubmitting(false);
       }
     } catch (error: any) {

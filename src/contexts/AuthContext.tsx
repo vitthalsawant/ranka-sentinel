@@ -12,10 +12,6 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Admin credentials
-const ADMIN_EMAIL = 'admin@datamorphosis.in';
-const ADMIN_PASSWORD = 'password123';
-
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
@@ -46,12 +42,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (profileError) {
         // If profile doesn't exist, return null (silent fail for performance)
         if (profileError.code === 'PGRST116') {
+          console.warn('Profile not found for user:', userId);
           return null;
         }
-        // Only log actual errors, not expected cases
-        if (profileError.code !== 'PGRST116') {
-          console.error('Profile fetch error:', profileError);
-        }
+        // Log actual errors for debugging
+        console.error('Profile fetch error:', profileError);
         return null;
       }
 
@@ -168,77 +163,99 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       console.log('Login attempt started:', { email, rememberMe: credentials.rememberMe });
 
-      // Check admin login
-      const isAdminEmail = email === ADMIN_EMAIL.toLowerCase();
-      const isAdminPassword = password === ADMIN_PASSWORD;
-      
-      console.log('Admin check:', { isAdminEmail, isAdminPassword, adminEmail: ADMIN_EMAIL });
-
-      if (isAdminEmail && isAdminPassword) {
-        console.log('Admin login detected');
-        const adminUser: User = {
-          id: 'admin-demo',
-          fullName: 'Admin User',
-          email: ADMIN_EMAIL,
-          phone: '+91 9876543210',
-          role: 'admin',
-          createdAt: new Date('2024-01-01'),
-        };
-
-        // Sign out from Supabase first to clear any existing session
-        console.log('Signing out from Supabase...');
-        try {
-          await supabase.auth.signOut();
-        } catch (err) {
-          console.warn('Error signing out from Supabase:', err);
-        }
-
-        // Clear any existing admin sessions
-        localStorage.removeItem('datamorphosis_admin_user');
-        sessionStorage.removeItem('datamorphosis_admin_user');
-
-        // Store admin user
-        if (credentials.rememberMe) {
-          localStorage.setItem('datamorphosis_admin_user', JSON.stringify(adminUser));
-          console.log('Admin user stored in localStorage');
-        } else {
-          sessionStorage.setItem('datamorphosis_admin_user', JSON.stringify(adminUser));
-          console.log('Admin user stored in sessionStorage');
-        }
-
-        // Set auth state synchronously
-        console.log('Setting admin user state...');
-        setAuthState({
-          user: adminUser,
-          isAuthenticated: true,
-          isLoading: false,
-        });
-
-        console.log('Admin login successful - state updated');
-        
-        // Show success message
-        toast.success(`Welcome back, ${adminUser.fullName}!`);
-        
-        // Return true immediately - redirect will happen via useEffect in Login component
-        return true;
-      }
-
-      // Regular user login - optimized for speed
+      // Attempt Supabase auth login (works for both admin and regular users)
+      // Admin user is now in the database with proper credentials
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: credentials.email.trim(),
+        email: credentials.email.trim().toLowerCase(),
         password: credentials.password,
       });
 
       if (error) {
+        console.error('Login error:', error);
+        console.error('Error details:', {
+          message: error.message,
+          status: error.status,
+          name: error.name,
+        });
         setAuthState(prev => ({ ...prev, isLoading: false }));
 
-        if (error.message.includes('Invalid login credentials') || 
+        // Try to auto-confirm email if not confirmed (allow any email to login)
+        if (error.message.includes('Email not confirmed') || 
+            error.message.includes('email_not_confirmed')) {
+          // Auto-confirm email and retry login
+          try {
+            const { data: { user: currentUser } } = await supabase.auth.getUser();
+            if (currentUser) {
+              await supabase.rpc('auto_confirm_user_email', { _user_id: currentUser.id });
+              // Retry login
+              const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
+                email: credentials.email.trim().toLowerCase(),
+                password: credentials.password,
+              });
+              if (!retryError && retryData.user) {
+                // Success - continue with normal flow
+                const user = await fetchUserProfile(retryData.user.id);
+                if (user) {
+                  if (user.role === 'admin') {
+                    if (credentials.rememberMe) {
+                      localStorage.setItem('datamorphosis_admin_user', JSON.stringify(user));
+                    } else {
+                      sessionStorage.setItem('datamorphosis_admin_user', JSON.stringify(user));
+                    }
+                  }
+                  setAuthState({
+                    user,
+                    isAuthenticated: true,
+                    isLoading: false,
+                  });
+                  toast.success(`Welcome back, ${user.fullName}!`);
+                  return true;
+                }
+              }
+            }
+          } catch (autoConfirmError) {
+            console.warn('Auto-confirm failed:', autoConfirmError);
+          }
+          toast.error('Please try logging in again. Email confirmation is being processed.');
+        } else if (error.message.includes('Invalid login credentials') || 
             error.message.includes('invalid_credentials') ||
-            error.message.includes('Invalid login')) {
-          toast.error('Invalid email or password. Please check your credentials.');
-        } else if (error.message.includes('Email not confirmed') || 
-                   error.message.includes('email_not_confirmed')) {
-          toast.error('Please verify your email before logging in. Check your inbox for the confirmation link.');
+            error.message.includes('Invalid login') ||
+            error.status === 400) {
+          // Provide helpful message for admin user
+          if (credentials.email.toLowerCase() === 'admin@datamorphosis.in') {
+            toast.error('Admin user not found. Please create the admin user in Supabase Dashboard first. See CREATE_ADMIN_USER.md for instructions.');
+            console.error('Admin user does not exist. Create it in Supabase Dashboard: Authentication > Users > Add User');
+          } else {
+            // Check if user exists in profiles but not in auth.users
+            const { data: profileCheck } = await supabase
+              .from('profiles')
+              .select('email, user_id')
+              .eq('email', credentials.email.trim().toLowerCase())
+              .maybeSingle();
+            
+            if (profileCheck) {
+              // Check if user exists in auth.users
+              const { data: authCheck } = await supabase
+                .from('auth.users')
+                .select('id, email_confirmed_at')
+                .eq('email', credentials.email.trim().toLowerCase())
+                .maybeSingle()
+                .catch(() => ({ data: null })); // Can't query auth.users directly, try alternative
+              
+              // Try to get user via RPC or check profile user_id
+              if (profileCheck.user_id) {
+                // Profile exists with user_id - user might exist but password wrong or email not confirmed
+                toast.error('Account found but login failed. Please check your password or use "Forgot Password" to reset.');
+                console.error('User exists in profiles with user_id:', profileCheck.user_id, 'Login failed - check password or email confirmation');
+              } else {
+                // Profile exists but no user_id - user needs to re-register
+                toast.error('Account exists but authentication is missing. Please register again or contact support.');
+                console.error('User exists in profiles but no user_id - needs re-registration');
+              }
+            } else {
+              toast.error('Invalid email or password. Please check your credentials or register a new account.');
+            }
+          }
         } else if (error.message.includes('Too many requests')) {
           toast.error('Too many login attempts. Please wait a moment and try again.');
         } else {
@@ -253,13 +270,44 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return false;
       }
 
+      // Ensure email is confirmed (auto-confirm if not)
+      if (!data.user.email_confirmed_at) {
+        try {
+          await supabase.rpc('auto_confirm_user_email', { _user_id: data.user.id });
+        } catch (confirmError) {
+          console.warn('Auto-confirm email warning:', confirmError);
+        }
+      }
+
       // Fetch user profile immediately (parallel queries already optimized)
       const user = await fetchUserProfile(data.user.id);
 
       if (!user) {
         setAuthState(prev => ({ ...prev, isLoading: false }));
-        toast.error('Profile not found. Please register again or contact support.');
+        console.error('Profile fetch failed for user:', data.user.id);
+        console.error('User email:', data.user.email);
+        
+        // For admin users, try to auto-create profile
+        if (data.user.email === 'admin@datamorphosis.in') {
+          toast.error('Admin profile not found. Please run the fix script in Supabase SQL Editor.');
+        } else {
+          toast.error('Profile not found. Please register again or contact support.');
+        }
         return false;
+      }
+
+      // Handle admin user session storage (for backward compatibility)
+      if (user.role === 'admin') {
+        // Clear any existing admin sessions
+        localStorage.removeItem('datamorphosis_admin_user');
+        sessionStorage.removeItem('datamorphosis_admin_user');
+
+        // Store admin user in session storage for backward compatibility
+        if (credentials.rememberMe) {
+          localStorage.setItem('datamorphosis_admin_user', JSON.stringify(user));
+        } else {
+          sessionStorage.setItem('datamorphosis_admin_user', JSON.stringify(user));
+        }
       }
 
       setAuthState({
@@ -290,26 +338,41 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return false;
       }
 
-      // Step 1: Create auth user
+      // Step 1: Create auth user (no email verification required)
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: data.email.trim(),
+        email: data.email.trim().toLowerCase(),
         password: data.password,
         options: {
           data: {
             full_name: data.fullName,
             phone: data.phone,
           },
+          // Email confirmation disabled - users can login immediately
         },
       });
 
       if (authError) {
         console.error('Auth signup error:', authError);
+        console.error('Error details:', {
+          message: authError.message,
+          status: authError.status,
+          name: authError.name,
+        });
         setAuthState(prev => ({ ...prev, isLoading: false }));
         
-        if (authError.message.includes('already registered') || authError.message.includes('already exists')) {
+        // Handle specific error cases
+        if (authError.message.includes('already registered') || 
+            authError.message.includes('already exists') ||
+            authError.message.includes('User already registered')) {
           toast.error('Email already registered. Please sign in instead.');
+        } else if (authError.message.includes('Password')) {
+          toast.error('Password does not meet requirements. Please use at least 8 characters.');
+        } else if (authError.message.includes('Invalid email')) {
+          toast.error('Please enter a valid email address.');
+        } else if (authError.status === 400) {
+          toast.error(`Registration failed: ${authError.message || 'Invalid request. Please check your information.'}`);
         } else {
-          toast.error(authError.message || 'Registration failed');
+          toast.error(authError.message || 'Registration failed. Please try again.');
         }
         return false;
       }
@@ -320,70 +383,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return false;
       }
 
-      // Step 2: Create company (user registers as company) - Use function directly for speed
-      // Function bypasses RLS and returns full company record
-      const { data: companyRecords, error: functionError } = await supabase
-        .rpc('create_company_for_registration', {
-          _name: data.fullName,
-          _contact_email: data.email.trim(),
-          _contact_phone: data.phone,
-        });
-
-      let companyData: any = null;
-      let companyError: any = null;
-
-      if (functionError) {
-        // Fallback: Try direct insert if function fails
-        const { data: directInsertData, error: directInsertError } = await supabase
-          .from('companies')
-          .insert({
-            name: data.fullName,
-            contact_email: data.email.trim(),
-            contact_phone: data.phone,
-            is_active: true,
-          })
-          .select()
-          .single();
-
-        if (directInsertError) {
-          companyError = directInsertError;
-        } else {
-          companyData = directInsertData;
-        }
-      } else {
-        // Function returns table with company record(s)
-        if (companyRecords && companyRecords.length > 0) {
-          companyData = companyRecords[0];
-        } else {
-          companyError = { message: 'Function returned no data' };
-        }
+      // Step 1.5: Auto-confirm email to enable immediate login (no email verification)
+      // Auto-confirm email so users can login immediately without email verification
+      // The trigger should handle this, but we ensure it's confirmed
+      try {
+        await supabase.rpc('auto_confirm_user_email', { _user_id: authData.user.id });
+      } catch (confirmError) {
+        // Non-critical - email confirmation might be handled by Supabase settings or trigger
+        console.warn('Auto-confirm email warning (non-critical):', confirmError);
       }
 
-      if (companyError || !companyData) {
-        console.error('Company creation error:', companyError || 'No company data');
-        console.error('Error details:', {
-          code: companyError?.code,
-          message: companyError?.message,
-          details: companyError?.details,
-          hint: companyError?.hint
-        });
-        // Try to clean up auth user (may fail if no admin access)
-        try {
-          await supabase.auth.admin.deleteUser(authData.user.id);
-        } catch (cleanupError) {
-          console.warn('User cleanup error:', cleanupError);
-        }
-        setAuthState(prev => ({ ...prev, isLoading: false }));
-        
-        if (companyError?.message?.includes('row-level security') || companyError?.code === '42501') {
-          toast.error('Registration error: Permission denied. Please contact support.');
-        } else {
-          toast.error(`Failed to create company: ${companyError?.message || 'Unknown error'}`);
-        }
-        return false;
-      }
-
-      // Step 3 & 4: Create/update profile and role in parallel (trigger may have created them)
+      // Step 2: Create/update profile and role in parallel (trigger may have created them)
+      // Company creation is optional - using null for company_id since we only need two tables
       // This is much faster than sequential operations
       const [profileResult, roleResult] = await Promise.all([
         supabase.rpc('create_profile_for_registration', {
@@ -391,18 +402,22 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           _email: data.email.trim(),
           _full_name: data.fullName,
           _phone: data.phone,
-          _company_id: companyData.id,
+          _company_id: null, // No company required - only two tables needed
         }).then(result => {
           // If function fails, try direct update (non-blocking)
           if (result.error) {
             return supabase
               .from('profiles')
-              .update({
+              .upsert({
+                user_id: authData.user.id,
+                email: data.email.trim(),
                 full_name: data.fullName,
                 phone: data.phone,
-                company_id: companyData.id,
-              })
-              .eq('user_id', authData.user.id);
+                company_id: null,
+                is_approved: true,
+              }, {
+                onConflict: 'user_id'
+              });
           }
           return result;
         }),
@@ -447,14 +462,32 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       if (signInError) {
         console.error('Auto sign-in error:', signInError);
-        setAuthState(prev => ({ ...prev, isLoading: false }));
-        
-        if (signInError.message.includes('Email not confirmed')) {
-          toast.success('Registration successful! Please check your email to confirm your account.');
+        // Try to auto-confirm email again and retry login
+        if (signInError.message.includes('Email not confirmed') || signInError.message.includes('email_not_confirmed')) {
+          try {
+            await supabase.rpc('auto_confirm_user_email', { _user_id: authData.user.id });
+            // Retry sign in
+            const { error: retryError } = await supabase.auth.signInWithPassword({
+              email: data.email.trim(),
+              password: data.password,
+            });
+            if (!retryError) {
+              // Success - continue with profile fetch
+            } else {
+              setAuthState(prev => ({ ...prev, isLoading: false }));
+              toast.success('Registration successful! Please sign in.');
+              return true;
+            }
+          } catch (retryErr) {
+            setAuthState(prev => ({ ...prev, isLoading: false }));
+            toast.success('Registration successful! Please sign in.');
+            return true;
+          }
         } else {
+          setAuthState(prev => ({ ...prev, isLoading: false }));
           toast.success('Registration successful! Please sign in.');
+          return true;
         }
-        return true; // Registration succeeded even if auto sign-in failed
       }
 
       // Step 6: Fetch user profile immediately (no delay needed - trigger creates it instantly)
