@@ -2,6 +2,15 @@
 
 A real-time person counting and gender classification system with analytics dashboard powered by YOLOv8, TensorFlow, and React. This project provides live camera feeds, visitor analytics, gender statistics, and detection settings through an intuitive web interface.
 
+## 🆕 What's New
+
+- **Unified Quick Start**: See `START_PROJECT.md` for a concise, step‑by‑step guide to run the full stack (Python services + React frontend) with the recommended terminal layout.
+- **Demo Login Accounts**: Preconfigured Admin and Customer users for testing the dashboards. Full details in `DEMO_CREDENTIALS.md` (emails, passwords, and suggested test flows).
+- **Auth & Dashboard Flow**: Updated React frontend with Admin and Customer dashboards, login/registration pages, and mock/demo auth wired to localStorage and ready for Supabase integration.
+- **Supabase Integration (Optional)**: Database schema, demo users, and RLS fixes under `supabase/migrations/` (see `supabase/README.md` for setup and migration details).
+- **ROI Drawing Feature**: Interactive Region of Interest selection for video streams, documented in `ROI_DRAWING_FEATURE.md` and available in the Detection Settings UI.
+- **Admin/Customer Login Fix Guides**: Helper documents like `FIX_ADMIN_LOGIN.md`, `FIX_CUSTOMER_LOGIN.md`, and `QUICK_FIX_*` files describe common login issues and quick recovery steps during integration.
+
 ## 🚀 Quick Start Guide
 
 ### Prerequisites
@@ -355,9 +364,13 @@ Then:
 
 ## 📄 Additional Documentation
 
-- `python-algorithm/README_SECURITY_SERVICES.md` - Detailed service documentation
+- `START_PROJECT.md` - Short, consolidated "how to run everything" guide for this repo
+- `DEMO_CREDENTIALS.md` - Demo Admin & Customer login accounts for testing dashboards
+- `ROI_DRAWING_FEATURE.md` - Details about interactive ROI selection in the video stream
+- `supabase/README.md` - Supabase schema, migrations, and auth integration notes
+- `python-algorithm/README_SECURITY_SERVICES.md` - Detailed security services documentation
 - `python-algorithm/README_GENDER_CLASSIFICATION.md` - Gender classification guide
-- `python-algorithm/INTEGRATION_GUIDE.md` - Integration details
+- `python-algorithm/INTEGRATION_GUIDE.md` - Python ↔ frontend integration details
 
 ## 🎯 Quick Reference
 
