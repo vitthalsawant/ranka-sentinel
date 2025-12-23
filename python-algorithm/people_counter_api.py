@@ -56,14 +56,16 @@ def get_settings_from_api():
             "sensitivity": data.get("sensitivity", 80),
             "confidence_threshold": 0.5 + (data.get("sensitivity", 80) / 100) * 0.45,
             "roi_config": roi_config if roi_valid else None,
-            "roi_valid": roi_valid
+            "roi_valid": roi_valid,
+            "reset_token": data.get("reset_token", 0)
         }
     return {
         "enabled": True,
         "sensitivity": 80,
         "confidence_threshold": 0.8,
         "roi_config": None,
-        "roi_valid": False
+        "roi_valid": False,
+        "reset_token": 0
     }
 
 # ============================================
@@ -202,11 +204,12 @@ def run_detection():
     male_count = 0
     female_count = 0
     
-    # Initialize settings
+    # Initialize settings and reset tracking token
     settings = get_settings_from_api()
     conf_level = settings["confidence_threshold"]
     roi_cfg = settings["roi_config"]
     roi_valid = settings["roi_valid"]
+    reset_token = settings.get("reset_token", 0)
     
     try:
         while True:
@@ -221,6 +224,19 @@ def run_detection():
                 conf_level = settings["confidence_threshold"]
                 roi_cfg = settings["roi_config"]
                 roi_valid = settings["roi_valid"]
+
+                # If dashboard reset was triggered, clear local counters/tracking
+                new_reset_token = settings.get("reset_token", reset_token)
+                if new_reset_token != reset_token:
+                    reset_token = new_reset_token
+                    male_count = 0
+                    female_count = 0
+                    count_p = 0
+                    counted_person_ids.clear()
+                    tracked_people_gender.clear()
+                    centers_old.clear()
+                    print("[INFO] Reset token detected from dashboard. Local counters cleared.")
+
                 last_api_update = time.time()
             
             frame = resize_frame(frame, scale_percent)

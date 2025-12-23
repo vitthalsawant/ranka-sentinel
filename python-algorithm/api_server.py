@@ -49,7 +49,8 @@ person_counting_data = {
     "peak_occupancy": 0,
     "peak_time": None,
     "hourly_foot_traffic": {},
-    "roi_config": None  # ROI must be set by user in dashboard
+    "roi_config": None,  # ROI must be set by user in dashboard
+    "reset_token": 0     # increments every time counts are reset
 }
 
 # Gender classification specific data
@@ -93,6 +94,8 @@ def root():
             "GET  /api/person-counting",
             "POST /api/person-counting/settings",
             "POST /api/person-counting/update",
+            "POST /api/person-counting/reset",
+            "GET  /api/staff/attendance",
             "POST /api/internal/update-count"
         ],
         "frontend_url": "http://localhost:8080"
@@ -113,6 +116,8 @@ def api_info():
             "GET /api/gender-classification": "Get gender classification data",
             "POST /api/person-counting/settings": "Update counting settings",
             "POST /api/person-counting/update": "Update count from detection script",
+            "POST /api/person-counting/reset": "Reset counts and occupancy tracking",
+            "GET /api/staff/attendance": "Get staff attendance summary",
             "POST /api/gender-classification/update": "Update gender classification data",
             "POST /api/internal/update-count": "Internal count update endpoint"
         }
@@ -179,6 +184,7 @@ def get_person_counting():
         "peak_time": person_counting_data["peak_time"],
         "hourly_foot_traffic": person_counting_data["hourly_foot_traffic"],
         "roi_config": person_counting_data["roi_config"],
+        "reset_token": person_counting_data["reset_token"],
         "timestamp": datetime.now().isoformat()
     })
 
@@ -232,6 +238,57 @@ def update_person_counting():
         "message": "Person count updated successfully",
         "total_count": person_counting_data["total_count"],
         "current_in_roi": person_counting_data["current_in_roi"]
+    })
+
+
+@app.route('/api/person-counting/reset', methods=['POST'])
+def reset_person_counting():
+    """Reset person counting totals, occupancy, and gender counts"""
+    global person_counting_data, analytics_data, gender_classification_data
+    
+    person_counting_data.update({
+        "total_count": 0,
+        "current_in_roi": 0,
+        "entries_today": 0,
+        "exits_today": 0,
+        "peak_occupancy": 0,
+        "peak_time": None,
+        "hourly_foot_traffic": {},
+        "_last_count": 0,
+        "reset_token": person_counting_data.get("reset_token", 0) + 1,
+    })
+    gender_classification_data.update({
+        "male_count": 0,
+        "female_count": 0,
+        "total_count": 0,
+        "last_update": datetime.now().isoformat()
+    })
+    analytics_data.update({
+        "total_visitors": 0,
+        "male_count": 0,
+        "female_count": 0,
+        "current_occupancy": 0
+    })
+    
+    return jsonify({
+        "success": True,
+        "message": "Person counting data reset successfully",
+        "total_count": person_counting_data["total_count"],
+        "current_in_roi": person_counting_data["current_in_roi"],
+        "male_count": gender_classification_data["male_count"],
+        "female_count": gender_classification_data["female_count"]
+    })
+
+
+@app.route('/api/staff/attendance', methods=['GET'])
+def get_staff_attendance():
+    """
+    Stub endpoint for staff attendance to satisfy frontend calls.
+    Replace with real data when integrating attendance service.
+    """
+    return jsonify({
+        "attendance": [],
+        "timestamp": datetime.now().isoformat()
     })
 
 
@@ -495,6 +552,7 @@ def not_found(error):
             "GET  /api/person-counting",
             "POST /api/person-counting/settings",
             "POST /api/person-counting/update",
+            "POST /api/person-counting/reset",
             "POST /api/internal/update-count"
         ],
         "frontend_url": "http://localhost:8080"
@@ -558,6 +616,8 @@ if __name__ == '__main__':
     print("  GET  /api/video/frame               - Single video frame")
     print("  POST /api/person-counting/settings   - Update counting settings")
     print("  POST /api/person-counting/update    - Update count from detection script")
+    print("  POST /api/person-counting/reset     - Reset counts and occupancy tracking")
+    print("  GET  /api/staff/attendance          - Staff attendance summary (stub)")
     print("  POST /api/internal/update-count     - Internal count update endpoint")
     print("  POST /api/internal/update-frame     - Update video frame")
     print("\nNote: This is an API-only server.")

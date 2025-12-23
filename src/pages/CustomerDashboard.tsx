@@ -3,7 +3,7 @@ import DashboardLayout from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import VideoStreamWithROI from '@/components/VideoStreamWithROI';
-import { Camera, AlertTriangle, Shield, Play, Bell, Activity, Clock, Settings, Users, UserCheck } from 'lucide-react';
+import { Camera, AlertTriangle, Shield, Play, Bell, Activity, Clock, Settings, Users, UserCheck, RotateCcw } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { usePythonAPI } from '@/hooks/usePythonAPI';
@@ -18,6 +18,7 @@ const MOCK_CAMERAS = [
 const CustomerDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { analytics, detections, isConnected, error, refreshAll } = usePythonAPI(5000); // 5 second refresh to reduce API load
+  const [isResetting, setIsResetting] = useState(false);
   const [roiConfig, setRoiConfig] = useState<{
     x_start_percent: number;
     x_end_percent: number;
@@ -96,6 +97,27 @@ const CustomerDashboard: React.FC = () => {
   const femaleCount = analytics?.female_count ?? 0;
   const recentDetections = detections.length > 0 ? detections.slice(-4).reverse() : [];
 
+  const handleResetCounts = async () => {
+    setIsResetting(true);
+    try {
+      const response = await fetch('http://localhost:5000/api/person-counting/reset', {
+        method: 'POST'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reset counts');
+      }
+
+      // Force-refresh to pull zeroed counts (total, male, female, occupancy)
+      await refreshAll();
+      toast.success('Counts reset successfully');
+    } catch (err) {
+      toast.error('Unable to reset counts. Please try again.');
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -113,6 +135,15 @@ const CustomerDashboard: React.FC = () => {
             <Button variant="gold" onClick={() => navigate('/customer/detection')}>
               <Shield className="w-4 h-4 mr-2" />
               Detection Settings
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={handleResetCounts} 
+              className="gap-2"
+              disabled={!isConnected || isResetting}
+            >
+              <RotateCcw className="w-4 h-4" />
+              {isResetting ? 'Resetting…' : 'Reset Counts'}
             </Button>
           </div>
         </div>
